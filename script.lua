@@ -127,13 +127,11 @@ end
 local function PatchAllModules()
     if not (Settings.NoRecoil or Settings.NoSpread or Settings.NoBulletSpread) then return end
 
-    -- Сканируем ВСЕ ModuleScript во всей игре
     local locations = {
         ReplicatedStorage,
         game:GetService("StarterPlayer"),
     }
 
-    -- Также PlayerScripts если доступен
     pcall(function()
         table.insert(locations, LocalPlayer:FindFirstChild("PlayerScripts"))
     end)
@@ -161,7 +159,6 @@ local function PatchAllModules()
         end)
     end
 
-    -- Сканируем Value объекты в персонаже и оружии
     local ch = LocalPlayer.Character
     if ch then
         for _, child in ipairs(ch:GetDescendants()) do
@@ -312,22 +309,22 @@ end
 
 local ColdWarLocations = {
     Church = {
-        {name = "Подвал 1", pos = Vector3.new(231.8, 109.8, 17.5)},
-        {name = "Подвал 2", pos = Vector3.new(205.8, 109.8, 48.4)},
-        {name = "Вход", pos = Vector3.new(237.7, 128.3, 94.0)},
-        {name = "Лестница", pos = Vector3.new(236.3, 153.5, 89.8)},
-        {name = "Чердак", pos = Vector3.new(195.8, 171.5, 2.4)},
-        {name = "Крыша", pos = Vector3.new(238.1, 214.2, 91.7)},
+        {name = "Basement 1", pos = Vector3.new(231.8, 109.8, 17.5)},
+        {name = "Basement 2", pos = Vector3.new(205.8, 109.8, 48.4)},
+        {name = "Entrance", pos = Vector3.new(237.7, 128.3, 94.0)},
+        {name = "Staircase", pos = Vector3.new(236.3, 153.5, 89.8)},
+        {name = "Attic", pos = Vector3.new(195.8, 171.5, 2.4)},
+        {name = "Roof", pos = Vector3.new(238.1, 214.2, 91.7)},
     },
     Sniper = {
-        {name = "Крыша Церкви", pos = Vector3.new(238.1, 214.2, 91.7)},
-        {name = "Крыша Vasily", pos = Vector3.new(833.6, 226.3, 160.7)},
-        {name = "Чердак Церкви", pos = Vector3.new(195.8, 171.5, 2.4)},
-        {name = "Лестница Церкви", pos = Vector3.new(236.3, 153.5, 89.8)},
+        {name = "Church Roof", pos = Vector3.new(238.1, 214.2, 91.7)},
+        {name = "Vasily Roof", pos = Vector3.new(833.6, 226.3, 160.7)},
+        {name = "Church Attic", pos = Vector3.new(195.8, 171.5, 2.4)},
+        {name = "Church Staircase", pos = Vector3.new(236.3, 153.5, 89.8)},
     },
     General = {
-        {name = "Центр Карты", pos = Vector3.new(220, 130, 50)},
-        {name = "У Церкви", pos = Vector3.new(237.7, 128.3, 94.0)},
+        {name = "Map Center", pos = Vector3.new(220, 130, 50)},
+        {name = "Near Church", pos = Vector3.new(237.7, 128.3, 94.0)},
     },
 }
 
@@ -765,7 +762,7 @@ end
 
 -- CHURCH
 do local o=0;local function n() o=o+1;return o end
-    Sec(CP,"Church",n())
+    Sec(CP,"Church Locations",n())
     for _,loc in ipairs(ColdWarLocations.Church) do TPBtn(CP,loc.name,loc.pos,n()) end
 end
 
@@ -854,7 +851,6 @@ do local o=0;local function n() o=o+1;return o end
             print(string.format('{name="Spot",pos=Vector3.new(%.1f,%.1f,%.1f)},',p.X,p.Y,p.Z))
             SvBtn.Text="✅ Printed!";task.wait(1.5);SvBtn.Text="💾 Print Position (F9)" end end)
 
-    -- FULL DEBUG: сканирует ВСЁ и выводит в F9
     local DbgBtn=Instance.new("TextButton",StP);DbgBtn.Size=UDim2.new(1,0,0,28)
     DbgBtn.BackgroundColor3=Color3.fromRGB(120,80,50);DbgBtn.BorderSizePixel=0
     DbgBtn.Text="🔍 Full Debug Scan (F9)";DbgBtn.TextColor3=Color3.new(1,1,1);DbgBtn.TextSize=11
@@ -863,7 +859,6 @@ do local o=0;local function n() o=o+1;return o end
     DbgBtn.MouseButton1Click:Connect(function()
         print("\n========== FULL DEBUG SCAN ==========")
 
-        -- 1. Character
         local ch = LocalPlayer.Character
         if ch then
             print("\n--- CHARACTER ---")
@@ -898,7 +893,6 @@ do local o=0;local function n() o=o+1;return o end
             end
         end
 
-        -- 2. ReplicatedStorage modules
         print("\n--- REPLICATED STORAGE MODULES ---")
         pcall(function()
             for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
@@ -926,7 +920,6 @@ do local o=0;local function n() o=o+1;return o end
             end
         end)
 
-        -- 3. Remotes
         print("\n--- REMOTE EVENTS ---")
         pcall(function()
             for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
@@ -995,7 +988,6 @@ RunService.RenderStepped:Connect(function()
     if Settings.Enabled then local t,p=GetClosestPlayer();CurrentTarget=t;CachedTargetPosition=p
     else CurrentTarget=nil;CachedTargetPosition=nil end
 
-    -- Патчим модули каждые 3 секунды
     if (Settings.NoRecoil or Settings.NoSpread or Settings.NoBulletSpread) and tick() - lastPatchTick > 3 then
         lastPatchTick = tick()
         task.defer(PatchAllModules)
@@ -1012,7 +1004,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------------
---// HOOK (только raycast + remote, БЕЗ камеры)
+--// HOOK
 ------------------------------------------------------
 
 local HM={FindPartOnRayWithIgnoreList=true,FindPartOnRay=true,FindPartOnRayWithWhitelist=true,Raycast=true}
@@ -1020,7 +1012,6 @@ local HM={FindPartOnRayWithIgnoreList=true,FindPartOnRay=true,FindPartOnRayWithW
 local oldNC;oldNC=hookmetamethod(game,"__namecall",newcclosure(function(self,...)
     local m=getnamecallmethod()
 
-    -- Silent aim + No Bullet Spread через raycast
     if HM[m] and self==workspace then
         local needAim = Settings.Enabled and CachedTargetPosition
         local needNoBulletSpread = Settings.NoBulletSpread
@@ -1068,7 +1059,6 @@ local oldNC;oldNC=hookmetamethod(game,"__namecall",newcclosure(function(self,...
         end
     end
 
-    -- Remote interception для recoil/spread
     if (Settings.NoRecoil or Settings.NoSpread or Settings.NoBulletSpread) and (m=="FireServer" or m=="InvokeServer") then
         local a={...}
         local modified = false
@@ -1109,7 +1099,6 @@ local oldNC;oldNC=hookmetamethod(game,"__namecall",newcclosure(function(self,...
         if modified then return oldNC(self, unpack(a)) end
     end
 
-    -- No Fall Damage remote block
     if Settings.NoFallDamage and (m == "FireServer" or m == "InvokeServer") then
         local remoteName = self and self.Name and self.Name:lower() or ""
         if remoteName:find("fall") or remoteName:find("falldamage") or remoteName:find("impact")
@@ -1118,18 +1107,16 @@ local oldNC;oldNC=hookmetamethod(game,"__namecall",newcclosure(function(self,...
         end
     end
 
-    return oldNC(self,...) 
+    return oldNC(self,...)
 end))
 
--- __newindex: только для Value объектов, НЕ трогаем камеру
 local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key,value)
-    -- Проверяем что это НЕ камера
     if self == workspace.CurrentCamera then
         return oldNI(self,key,value)
     end
 
     local kl=tostring(key):lower()
-    
+
     if Settings.NoRecoil then
         if kl:find("recoil") or kl:find("kick") or kl:find("punch")
             or kl:find("camerakick") or kl:find("viewkick") or kl:find("aimkick")
@@ -1140,7 +1127,7 @@ local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key
             elseif typeof(value)=="Vector2" then return oldNI(self,key,Vector2.new(0,0)) end
         end
     end
-    
+
     if Settings.NoSpread or Settings.NoBulletSpread then
         if kl:find("spread") or kl:find("bloom") or kl:find("accuracy")
             or kl:find("deviation") or kl:find("cone") or kl:find("inaccuracy")
@@ -1151,15 +1138,15 @@ local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key
             elseif typeof(value)=="CFrame" then return oldNI(self,key,CFrame.new()) end
         end
     end
-    
+
     if Settings.NoFallDamage then
         if kl:find("falldamage") or kl:find("fall_damage") or kl:find("fallvelocity") then
             if typeof(value)=="number" then return oldNI(self,key,0)
             elseif typeof(value)=="boolean" then return oldNI(self,key,false) end
         end
     end
-    
-    return oldNI(self,key,value) 
+
+    return oldNI(self,key,value)
 end))
 
 ------------------------------------------------------
