@@ -5,10 +5,431 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local GuiInset = GuiService:GetGuiInset()
+
+------------------------------------------------------
+--// KEY SYSTEM
+------------------------------------------------------
+
+local VALID_KEYS = {
+    "ColdWarPoorGame",
+    "CW-VIP-2025",
+    "CW-PREMIUM-ALPHA",
+}
+
+local KEY_DISCORD = "https://discord.com/invite/EVqPGdnA6Q"
+local KEY_VERIFIED = false
+
+-- Key System GUI
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "CWKeySystem"
+KeyGui.ResetOnSpawn = false
+KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+KeyGui.IgnoreGuiInset = true
+if syn and syn.protect_gui then syn.protect_gui(KeyGui) end
+KeyGui.Parent = game:GetService("CoreGui")
+
+-- Discord Link Panel (маленькое перетаскиваемое)
+local DiscordPanel = Instance.new("Frame", KeyGui)
+DiscordPanel.Size = UDim2.new(0, 280, 0, 45)
+DiscordPanel.Position = UDim2.new(0, 15, 0.5, -120)
+DiscordPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+DiscordPanel.BorderSizePixel = 0
+DiscordPanel.Active = true
+DiscordPanel.Draggable = false
+Instance.new("UICorner", DiscordPanel).CornerRadius = UDim.new(0, 8)
+
+local DiscordStroke = Instance.new("UIStroke", DiscordPanel)
+DiscordStroke.Color = Color3.fromRGB(88, 101, 242)
+DiscordStroke.Thickness = 1.5
+
+local DiscordIcon = Instance.new("TextLabel", DiscordPanel)
+DiscordIcon.Size = UDim2.new(0, 35, 1, 0)
+DiscordIcon.Position = UDim2.new(0, 5, 0, 0)
+DiscordIcon.BackgroundTransparency = 1
+DiscordIcon.Text = "💬"
+DiscordIcon.TextSize = 20
+DiscordIcon.Font = Enum.Font.GothamBold
+DiscordIcon.TextColor3 = Color3.fromRGB(88, 101, 242)
+
+local DiscordLabel = Instance.new("TextLabel", DiscordPanel)
+DiscordLabel.Size = UDim2.new(1, -45, 0, 18)
+DiscordLabel.Position = UDim2.new(0, 40, 0, 4)
+DiscordLabel.BackgroundTransparency = 1
+DiscordLabel.Text = "Discord Server - Get Key"
+DiscordLabel.TextColor3 = Color3.new(1, 1, 1)
+DiscordLabel.TextSize = 11
+DiscordLabel.Font = Enum.Font.GothamBold
+DiscordLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local DiscordLink = Instance.new("TextButton", DiscordPanel)
+DiscordLink.Size = UDim2.new(1, -45, 0, 16)
+DiscordLink.Position = UDim2.new(0, 40, 0, 23)
+DiscordLink.BackgroundTransparency = 1
+DiscordLink.Text = "discord.com/invite/EVqPGdnA6Q 📋"
+DiscordLink.TextColor3 = Color3.fromRGB(88, 101, 242)
+DiscordLink.TextSize = 9
+DiscordLink.Font = Enum.Font.GothamMedium
+DiscordLink.TextXAlignment = Enum.TextXAlignment.Left
+
+DiscordLink.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(KEY_DISCORD)
+        DiscordLink.Text = "✅ Copied to clipboard!"
+        DiscordLink.TextColor3 = Color3.fromRGB(80, 255, 80)
+        task.wait(2)
+        DiscordLink.Text = "discord.com/invite/EVqPGdnA6Q 📋"
+        DiscordLink.TextColor3 = Color3.fromRGB(88, 101, 242)
+    end
+end)
+
+-- Discord Panel Dragging
+do
+    local dragging, dragInput, dragStart, startPos
+    DiscordPanel.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = DiscordPanel.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    DiscordPanel.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            DiscordPanel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Main Key Window
+local KeyMain = Instance.new("Frame", KeyGui)
+KeyMain.Size = UDim2.new(0, 380, 0, 280)
+KeyMain.AnchorPoint = Vector2.new(0.5, 0.5)
+KeyMain.Position = UDim2.new(0.5, 0, 0.5, 0)
+KeyMain.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+KeyMain.BorderSizePixel = 0
+KeyMain.ClipsDescendants = true
+Instance.new("UICorner", KeyMain).CornerRadius = UDim.new(0, 10)
+
+local KeyMainStroke = Instance.new("UIStroke", KeyMain)
+KeyMainStroke.Color = Color3.fromRGB(130, 80, 255)
+KeyMainStroke.Thickness = 2
+
+-- Key Top Bar
+local KeyTopBar = Instance.new("Frame", KeyMain)
+KeyTopBar.Size = UDim2.new(1, 0, 0, 45)
+KeyTopBar.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+KeyTopBar.BorderSizePixel = 0
+Instance.new("UICorner", KeyTopBar).CornerRadius = UDim.new(0, 10)
+
+local KeyTopFix = Instance.new("Frame", KeyTopBar)
+KeyTopFix.Size = UDim2.new(1, 0, 0, 10)
+KeyTopFix.Position = UDim2.new(0, 0, 1, -10)
+KeyTopFix.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+KeyTopFix.BorderSizePixel = 0
+
+local KeyAccent = Instance.new("Frame", KeyTopBar)
+KeyAccent.Size = UDim2.new(1, 0, 0, 2)
+KeyAccent.Position = UDim2.new(0, 0, 1, 0)
+KeyAccent.BackgroundColor3 = Color3.fromRGB(130, 80, 255)
+KeyAccent.BorderSizePixel = 0
+local KeyGrad = Instance.new("UIGradient", KeyAccent)
+KeyGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(130, 80, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 100, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 80, 255))
+}
+
+local KeyTitle = Instance.new("TextLabel", KeyTopBar)
+KeyTitle.Size = UDim2.new(1, 0, 1, 0)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Text = "🔐 Cold War - Authentication"
+KeyTitle.TextColor3 = Color3.new(1, 1, 1)
+KeyTitle.TextSize = 16
+KeyTitle.Font = Enum.Font.GothamBold
+
+-- Key Top Bar Dragging
+do
+    local dragging, dragInput, dragStart, startPos
+    KeyTopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = KeyMain.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    KeyTopBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            KeyMain.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Content
+local KeyContent = Instance.new("Frame", KeyMain)
+KeyContent.Size = UDim2.new(1, -40, 1, -55)
+KeyContent.Position = UDim2.new(0, 20, 0, 50)
+KeyContent.BackgroundTransparency = 1
+
+-- Subtitle
+local KeySub = Instance.new("TextLabel", KeyContent)
+KeySub.Size = UDim2.new(1, 0, 0, 20)
+KeySub.Position = UDim2.new(0, 0, 0, 5)
+KeySub.BackgroundTransparency = 1
+KeySub.Text = "Enter your key to access Cold War v12.2"
+KeySub.TextColor3 = Color3.fromRGB(150, 150, 180)
+KeySub.TextSize = 12
+KeySub.Font = Enum.Font.GothamMedium
+
+-- Discord reminder
+local KeyDiscordReminder = Instance.new("TextLabel", KeyContent)
+KeyDiscordReminder.Size = UDim2.new(1, 0, 0, 16)
+KeyDiscordReminder.Position = UDim2.new(0, 0, 0, 28)
+KeyDiscordReminder.BackgroundTransparency = 1
+KeyDiscordReminder.Text = "💬 Get your key from our Discord server →"
+KeyDiscordReminder.TextColor3 = Color3.fromRGB(88, 101, 242)
+KeyDiscordReminder.TextSize = 10
+KeyDiscordReminder.Font = Enum.Font.GothamMedium
+
+-- Input Box
+local KeyInputBG = Instance.new("Frame", KeyContent)
+KeyInputBG.Size = UDim2.new(1, 0, 0, 40)
+KeyInputBG.Position = UDim2.new(0, 0, 0, 55)
+KeyInputBG.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
+KeyInputBG.BorderSizePixel = 0
+Instance.new("UICorner", KeyInputBG).CornerRadius = UDim.new(0, 8)
+local KeyInputStroke = Instance.new("UIStroke", KeyInputBG)
+KeyInputStroke.Color = Color3.fromRGB(60, 60, 90)
+KeyInputStroke.Thickness = 1
+
+local KeyInput = Instance.new("TextBox", KeyInputBG)
+KeyInput.Size = UDim2.new(1, -20, 1, 0)
+KeyInput.Position = UDim2.new(0, 10, 0, 0)
+KeyInput.BackgroundTransparency = 1
+KeyInput.Text = ""
+KeyInput.PlaceholderText = "Enter key here..."
+KeyInput.PlaceholderColor3 = Color3.fromRGB(80, 80, 110)
+KeyInput.TextColor3 = Color3.new(1, 1, 1)
+KeyInput.TextSize = 14
+KeyInput.Font = Enum.Font.GothamMedium
+KeyInput.TextXAlignment = Enum.TextXAlignment.Left
+KeyInput.ClearTextOnFocus = false
+
+KeyInput.Focused:Connect(function()
+    TweenService:Create(KeyInputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(130, 80, 255)}):Play()
+end)
+KeyInput.FocusLost:Connect(function()
+    TweenService:Create(KeyInputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(60, 60, 90)}):Play()
+end)
+
+-- Status Label
+local KeyStatus = Instance.new("TextLabel", KeyContent)
+KeyStatus.Size = UDim2.new(1, 0, 0, 18)
+KeyStatus.Position = UDim2.new(0, 0, 0, 102)
+KeyStatus.BackgroundTransparency = 1
+KeyStatus.Text = ""
+KeyStatus.TextColor3 = Color3.fromRGB(255, 60, 60)
+KeyStatus.TextSize = 11
+KeyStatus.Font = Enum.Font.GothamMedium
+
+-- Verify Button
+local KeyVerifyBtn = Instance.new("TextButton", KeyContent)
+KeyVerifyBtn.Size = UDim2.new(1, 0, 0, 38)
+KeyVerifyBtn.Position = UDim2.new(0, 0, 0, 125)
+KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(130, 80, 255)
+KeyVerifyBtn.BorderSizePixel = 0
+KeyVerifyBtn.Text = "🔓 Verify Key"
+KeyVerifyBtn.TextColor3 = Color3.new(1, 1, 1)
+KeyVerifyBtn.TextSize = 14
+KeyVerifyBtn.Font = Enum.Font.GothamBold
+KeyVerifyBtn.AutoButtonColor = false
+Instance.new("UICorner", KeyVerifyBtn).CornerRadius = UDim.new(0, 8)
+
+local VerifyGrad = Instance.new("UIGradient", KeyVerifyBtn)
+VerifyGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 60, 220)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 100, 255))
+}
+
+KeyVerifyBtn.MouseEnter:Connect(function()
+    TweenService:Create(KeyVerifyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(160, 100, 255)}):Play()
+end)
+KeyVerifyBtn.MouseLeave:Connect(function()
+    TweenService:Create(KeyVerifyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(130, 80, 255)}):Play()
+end)
+
+-- Copy Discord Button
+local KeyCopyDiscord = Instance.new("TextButton", KeyContent)
+KeyCopyDiscord.Size = UDim2.new(1, 0, 0, 30)
+KeyCopyDiscord.Position = UDim2.new(0, 0, 0, 170)
+KeyCopyDiscord.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+KeyCopyDiscord.BorderSizePixel = 0
+KeyCopyDiscord.Text = "💬 Copy Discord Invite"
+KeyCopyDiscord.TextColor3 = Color3.new(1, 1, 1)
+KeyCopyDiscord.TextSize = 12
+KeyCopyDiscord.Font = Enum.Font.GothamMedium
+KeyCopyDiscord.AutoButtonColor = false
+Instance.new("UICorner", KeyCopyDiscord).CornerRadius = UDim.new(0, 6)
+
+KeyCopyDiscord.MouseEnter:Connect(function()
+    TweenService:Create(KeyCopyDiscord, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(110, 120, 255)}):Play()
+end)
+KeyCopyDiscord.MouseLeave:Connect(function()
+    TweenService:Create(KeyCopyDiscord, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(88, 101, 242)}):Play()
+end)
+KeyCopyDiscord.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(KEY_DISCORD)
+        KeyCopyDiscord.Text = "✅ Copied!"
+        task.wait(2)
+        KeyCopyDiscord.Text = "💬 Copy Discord Invite"
+    end
+end)
+
+-- Attempts counter
+local KeyAttempts = 0
+local MAX_ATTEMPTS = 5
+local KeyLocked = false
+
+-- Verify Logic
+local function VerifyKey()
+    if KeyLocked then
+        KeyStatus.Text = "⏳ Too many attempts. Wait 30 seconds."
+        KeyStatus.TextColor3 = Color3.fromRGB(255, 200, 50)
+        return
+    end
+
+    local inputKey = KeyInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
+
+    if inputKey == "" then
+        KeyStatus.Text = "❌ Please enter a key!"
+        KeyStatus.TextColor3 = Color3.fromRGB(255, 60, 60)
+        return
+    end
+
+    KeyVerifyBtn.Text = "⏳ Verifying..."
+    KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+
+    task.wait(0.8)
+
+    local valid = false
+    for _, k in ipairs(VALID_KEYS) do
+        if inputKey == k then
+            valid = true
+            break
+        end
+    end
+
+    if valid then
+        KEY_VERIFIED = true
+        KeyStatus.Text = "✅ Key verified! Loading..."
+        KeyStatus.TextColor3 = Color3.fromRGB(80, 255, 80)
+        KeyVerifyBtn.Text = "✅ Verified!"
+        KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 80)
+
+        -- Success animation
+        TweenService:Create(KeyMainStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(80, 255, 80)}):Play()
+
+        task.wait(1.5)
+
+        -- Fade out key system
+        TweenService:Create(KeyMain, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, 0, 0.5, 50)
+        }):Play()
+        TweenService:Create(KeyMain, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(DiscordPanel, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+
+        task.wait(0.6)
+        KeyGui:Destroy()
+    else
+        KeyAttempts = KeyAttempts + 1
+        local remaining = MAX_ATTEMPTS - KeyAttempts
+        KeyStatus.Text = "❌ Invalid key! " .. remaining .. " attempts remaining"
+        KeyStatus.TextColor3 = Color3.fromRGB(255, 60, 60)
+        KeyVerifyBtn.Text = "🔓 Verify Key"
+        KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(130, 80, 255)
+
+        -- Shake animation
+        local origPos = KeyInputBG.Position
+        for i = 1, 4 do
+            KeyInputBG.Position = UDim2.new(origPos.X.Scale, origPos.X.Offset + 5, origPos.Y.Scale, origPos.Y.Offset)
+            task.wait(0.04)
+            KeyInputBG.Position = UDim2.new(origPos.X.Scale, origPos.X.Offset - 5, origPos.Y.Scale, origPos.Y.Offset)
+            task.wait(0.04)
+        end
+        KeyInputBG.Position = origPos
+
+        TweenService:Create(KeyInputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(255, 60, 60)}):Play()
+        task.wait(0.5)
+        TweenService:Create(KeyInputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(60, 60, 90)}):Play()
+
+        if KeyAttempts >= MAX_ATTEMPTS then
+            KeyLocked = true
+            KeyStatus.Text = "🔒 Locked for 30 seconds"
+            KeyStatus.TextColor3 = Color3.fromRGB(255, 200, 50)
+            KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+            task.delay(30, function()
+                KeyLocked = false
+                KeyAttempts = 0
+                KeyStatus.Text = "🔓 Unlocked - try again"
+                KeyStatus.TextColor3 = Color3.fromRGB(80, 255, 80)
+                KeyVerifyBtn.BackgroundColor3 = Color3.fromRGB(130, 80, 255)
+            end)
+        end
+    end
+end
+
+KeyVerifyBtn.MouseButton1Click:Connect(VerifyKey)
+KeyInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then VerifyKey() end
+end)
+
+-- Entrance animation
+KeyMain.Position = UDim2.new(0.5, 0, 0.5, 30)
+KeyMain.BackgroundTransparency = 0.3
+TweenService:Create(KeyMain, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    BackgroundTransparency = 0
+}):Play()
+
+DiscordPanel.Position = UDim2.new(0, -300, 0.5, -120)
+TweenService:Create(DiscordPanel, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
+    Position = UDim2.new(0, 15, 0.5, -120)
+}):Play()
+
+-- Wait for verification
+print("[Cold War v12.2] Key system loaded. Waiting for authentication...")
+repeat task.wait(0.1) until KEY_VERIFIED
+print("[Cold War v12.2] Key verified! Loading cheat...")
+
+------------------------------------------------------
+--// MAIN SCRIPT STARTS HERE
+------------------------------------------------------
 
 local function GetMouseViewportPos()
     return Vector2.new(Mouse.X, Mouse.Y + GuiInset.Y)
@@ -172,10 +593,8 @@ local hookedWeaponModules = {}
 
 local function DeepPatchTable(tbl, depth)
     if depth > 8 or type(tbl) ~= "table" then return end
-
     for k, v in pairs(tbl) do
         local kl = type(k) == "string" and k:lower() or ""
-
         if Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25 then
             if kl == "ammocost" or kl == "ammo_cost" or kl == "ammouse" or kl == "ammo_use"
                 or kl == "ammopershot" or kl == "ammo_per_shot" or kl == "bulletcost"
@@ -194,7 +613,6 @@ local function DeepPatchTable(tbl, depth)
                 if type(v) == "number" then pcall(function() tbl[k] = 0.01 end) end
             end
         end
-
         if Settings.InfGP25 then
             if kl:find("secondary") or kl:find("altammo") or kl:find("alt_ammo")
                 or kl:find("underbarrel") or kl:find("grenade") or kl:find("gp25")
@@ -218,7 +636,6 @@ local function DeepPatchTable(tbl, depth)
                 end
             end
         end
-
         if Settings.InfRPG then
             if kl:find("rocket") or kl:find("rpg") or kl:find("missile") or kl:find("launcher") then
                 if type(v) == "number" then
@@ -230,7 +647,6 @@ local function DeepPatchTable(tbl, depth)
                 end
             end
         end
-
         if type(v) == "table" then DeepPatchTable(v, depth + 1) end
     end
 end
@@ -242,27 +658,22 @@ end
 local function HookWeaponFunctions(mod, modPath)
     if type(mod) ~= "table" then return end
     if not (Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25) then return end
-
     for funcName, funcVal in pairs(mod) do
         if type(funcVal) ~= "function" then continue end
         local fnl = funcName:lower()
         local hookKey = modPath.."_"..funcName
         if hookedWeaponModules[hookKey] then continue end
-
         if fnl == "consumeammo" or fnl == "useammo" or fnl == "removeammo"
             or fnl == "decrementammo" or fnl == "spendammo" or fnl == "subtractammo"
-            or fnl == "drainammo"
-            or fnl == "consumesecondary" or fnl == "usesecondaryammo"
-            or fnl == "consumealtammo" or fnl == "usealtammo"
-            or fnl == "consumegrenade" or fnl == "usegrenade"
-            or fnl == "removegrenade" or fnl == "consumegl"
+            or fnl == "drainammo" or fnl == "consumesecondary" or fnl == "usesecondaryammo"
+            or fnl == "consumealtammo" or fnl == "usealtammo" or fnl == "consumegrenade"
+            or fnl == "usegrenade" or fnl == "removegrenade" or fnl == "consumegl"
             or fnl == "consumesecondaryammo" or fnl == "removesecondaryammo"
             or fnl == "decrementgrenade" or fnl == "spendgrenade"
             or fnl == "removealtammo" or fnl == "subtractsecondary" then
             mod[funcName] = function() return end
             hookedWeaponModules[hookKey] = true
         end
-
         if fnl == "getammo" or fnl == "getmagammo" or fnl == "getcurrentammo"
             or fnl == "getmagcount" or fnl == "getrounds" or fnl == "ammocount"
             or fnl == "getsecondaryammo" or fnl == "getaltammo"
@@ -278,29 +689,23 @@ local function HookWeaponFunctions(mod, modPath)
             end
             hookedWeaponModules[hookKey] = true
         end
-
         if fnl == "isempty" or fnl == "needsreload" or fnl == "outofammo"
-            or fnl == "ismagempty" or fnl == "nomags"
-            or fnl == "issecondaryempty" or fnl == "isaltempty"
-            or fnl == "isgrenadeempty" or fnl == "nogrenades"
-            or fnl == "secondaryempty" or fnl == "glempty"
-            or fnl == "isglroundempty" or fnl == "noaltammo"
-            or fnl == "issecondarymagempty" or fnl == "needssecondaryreload"
-            or fnl == "isunderbarrelempty" then
+            or fnl == "ismagempty" or fnl == "nomags" or fnl == "issecondaryempty"
+            or fnl == "isaltempty" or fnl == "isgrenadeempty" or fnl == "nogrenades"
+            or fnl == "secondaryempty" or fnl == "glempty" or fnl == "isglroundempty"
+            or fnl == "noaltammo" or fnl == "issecondarymagempty"
+            or fnl == "needssecondaryreload" or fnl == "isunderbarrelempty" then
             mod[funcName] = function() return false end
             hookedWeaponModules[hookKey] = true
         end
-
         if fnl == "canfire" or fnl == "canshoot" or fnl == "hasammo"
-            or fnl == "hasmag" or fnl == "isloaded"
-            or fnl == "canfiresecondary" or fnl == "canfirealt"
-            or fnl == "canfiregrenade" or fnl == "canfiregl"
-            or fnl == "hassecondaryammo" or fnl == "hasaltammo"
-            or fnl == "hasgrenade" or fnl == "hasglround"
-            or fnl == "issecondaryloaded" or fnl == "isaltloaded"
-            or fnl == "isglloaded" or fnl == "canshootsecondary"
-            or fnl == "hassecondary" or fnl == "secondaryready"
-            or fnl == "isunderbarrelready" or fnl == "isunderbarrelloaded" then
+            or fnl == "hasmag" or fnl == "isloaded" or fnl == "canfiresecondary"
+            or fnl == "canfirealt" or fnl == "canfiregrenade" or fnl == "canfiregl"
+            or fnl == "hassecondaryammo" or fnl == "hasaltammo" or fnl == "hasgrenade"
+            or fnl == "hasglround" or fnl == "issecondaryloaded" or fnl == "isaltloaded"
+            or fnl == "isglloaded" or fnl == "canshootsecondary" or fnl == "hassecondary"
+            or fnl == "secondaryready" or fnl == "isunderbarrelready"
+            or fnl == "isunderbarrelloaded" then
             mod[funcName] = function() return true end
             hookedWeaponModules[hookKey] = true
         end
@@ -346,12 +751,10 @@ local function PatchMagSystem()
         if typeof(conn) == "RBXScriptConnection" and conn.Connected then conn:Disconnect() end
     end
     magConnections = {}
-
     for _, tool in ipairs(ch:GetChildren()) do
         if not tool:IsA("Tool") then continue end
         for _, desc in ipairs(tool:GetDescendants()) do
             local name = desc.Name:lower()
-
             if (desc:IsA("NumberValue") or desc:IsA("IntValue")) then
                 local shouldPatch = false
                 if Settings.InfAmmo and PRIMARY_AMMO_NAMES[name] then shouldPatch = true end
@@ -377,7 +780,6 @@ local function PatchMagSystem()
                     table.insert(magConnections, conn)
                 end
             end
-
             if name:find("magslot") or name:find("currentmagslot")
                 or (Settings.InfGP25 and (name:find("secondarymagslot") or name:find("secondary_mag_slot")
                     or name:find("altmagslot") or name:find("glmagslot") or name:find("grenademagslot")
@@ -390,7 +792,6 @@ local function PatchMagSystem()
                 end)
                 table.insert(magConnections, conn)
             end
-
             if Settings.InfGP25 and (name:find("secondary") or name:find("underbarrel")
                 or name:find("grenade") or name:find("gp25") or name:find("gl") or name:find("alt")) then
                 if desc:IsA("Folder") or desc:IsA("Model") or desc:IsA("Configuration") then
@@ -406,7 +807,6 @@ local function PatchMagSystem()
                     table.insert(magConnections, conn)
                 end
             end
-
             if desc:IsA("ModuleScript") then
                 local mn = desc.Name:lower()
                 if not IsModuleBlacklisted(mn) then
@@ -421,7 +821,6 @@ local function PatchMagSystem()
             end
         end
     end
-
     local conn = ch.ChildAdded:Connect(function(child)
         if child:IsA("Tool") then task.wait(0.3);PatchMagSystem() end
     end)
@@ -434,7 +833,6 @@ end
 
 local function PatchAllModules()
     if not (Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25) then return end
-
     if Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25 then
         PatchColdWarWeaponSystem()
         PatchMagSystem()
@@ -453,7 +851,6 @@ local function MonitorAmmoValues()
     end
     ammoConnections = {}
     local ch = LocalPlayer.Character;if not ch then return end
-
     local function HookValue(obj)
         if not (obj:IsA("NumberValue") or obj:IsA("IntValue")) then return end
         if not IsInsideWeapon(obj) then return end
@@ -466,7 +863,6 @@ local function MonitorAmmoValues()
         end)
         table.insert(ammoConnections, conn)
     end
-
     for _, desc in ipairs(ch:GetDescendants()) do HookValue(desc) end
     local addedConn = ch.DescendantAdded:Connect(function(desc) task.wait();HookValue(desc) end)
     table.insert(ammoConnections, addedConn)
@@ -710,20 +1106,13 @@ end))
 local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key,value)
     if not (Settings.NoBulletSpread or Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25 or Settings.NoFallDamage) then return oldNI(self,key,value) end
     if typeof(self) ~= "Instance" then return oldNI(self,key,value) end
-
-    -- NEVER touch camera
     local isCamera = false
     pcall(function() isCamera = (self == workspace.CurrentCamera) or self:IsDescendantOf(workspace.CurrentCamera) end)
     if isCamera then return oldNI(self,key,value) end
-
-    -- NEVER touch GUI
     local isGui = false
     pcall(function() isGui = self:IsA("GuiObject") or self:IsA("GuiBase") or self:IsA("ScreenGui") or self:IsA("LayerCollector") end)
     if isGui then return oldNI(self,key,value) end
-
     local kl = tostring(key):lower()
-
-    -- NO BULLET SPREAD: intercept ANYWHERE (except camera/gui)
     if Settings.NoBulletSpread then
         if kl == "spread" or kl == "bloom" or kl == "deviation" or kl == "cone" then
             if typeof(value) == "number" then return oldNI(self,key,0)
@@ -731,16 +1120,12 @@ local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key
             elseif typeof(value) == "Vector2" then return oldNI(self,key,Vector2.new(0,0)) end
         end
     end
-
-    -- NO FALL DAMAGE
     if Settings.NoFallDamage then
         if kl == "falldamage" or kl == "fall_damage" then
             if typeof(value) == "number" then return oldNI(self,key,0)
             elseif typeof(value) == "boolean" then return oldNI(self,key,false) end
         end
     end
-
-    -- INF AMMO: ONLY inside weapons
     if Settings.InfAmmo or Settings.InfRPG or Settings.InfGP25 then
         local isWeapon = false
         pcall(function() isWeapon = IsInsideWeapon(self) end)
@@ -754,7 +1139,6 @@ local oldNI;oldNI=hookmetamethod(game,"__newindex",newcclosure(function(self,key
             end
         end
     end
-
     return oldNI(self,key,value)
 end))
 
@@ -773,8 +1157,8 @@ end)
 ------------------------------------------------------
 
 local N=Instance.new("Frame",SG);N.Size=UDim2.new(0,380,0,34);N.AnchorPoint=Vector2.new(0.5,0);N.Position=UDim2.new(0.5,0,0,-40);N.BackgroundColor3=Settings.SideBG;N.BorderSizePixel=0;Instance.new("UICorner",N).CornerRadius=UDim.new(0,6);Instance.new("UIStroke",N).Color=Settings.AccentColor
-local NTx=Instance.new("TextLabel",N);NTx.Size=UDim2.new(1,0,1,0);NTx.BackgroundTransparency=1;NTx.Text="🎯 Cold War v12.2 | Insert=Menu | X=Aim | Fixed";NTx.TextColor3=Color3.new(1,1,1);NTx.TextSize=10;NTx.Font=Enum.Font.GothamMedium;NTx.TextXAlignment=Enum.TextXAlignment.Center
+local NTx=Instance.new("TextLabel",N);NTx.Size=UDim2.new(1,0,1,0);NTx.BackgroundTransparency=1;NTx.Text="🎯 Cold War v12.2 | Insert=Menu | X=Aim | Authenticated ✅";NTx.TextColor3=Color3.new(1,1,1);NTx.TextSize=10;NTx.Font=Enum.Font.GothamMedium;NTx.TextXAlignment=Enum.TextXAlignment.Center
 TweenService:Create(N,TweenInfo.new(0.5,Enum.EasingStyle.Back),{Position=UDim2.new(0.5,0,0,10)}):Play()
 task.delay(4,function() TweenService:Create(N,TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.In),{Position=UDim2.new(0.5,0,0,-45)}):Play();task.wait(0.5);N:Destroy() end)
 
-print("[Cold War v12.2] All systems operational!")
+print("[Cold War v12.2] All systems operational! Key authenticated.")
