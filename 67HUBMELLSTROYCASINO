@@ -1,3 +1,13 @@
+-- Universal 67 Menu (Cool ESP + UniversalFly + Coldwar Mechanics + Advanced Teams)
+-- Complete Universal Suite featuring:
+-- 1. Cool ESP (message.txt): Corner Slice Box (`ImageLabel` slice & corner fallbacks), Solid Gradient Box,
+--    Multi-Color UIGradient Health Bar (Red->Yellow->Green), Directional Top/Bottom Texts (Name, Role, Distance, Weapon).
+-- 2. UniversalFly: Full Velocity Nullify & CFrame Heartbeat flight modes with custom keybind and speed slider.
+-- 3. Coldwar Engine: Drawing Skeleton joints, FOV Circle, Highlight Chams, and universal hookmetamethod Silent Aim.
+-- 4. Advanced 5-Layer Team Check: Checks standard Team/Color, Neutral, Player/Character attributes & folders
+--    (Team/Squad/Clan/Party), leaderstats, Friend verification (IsFriendsWith), and ForceField/SpawnProtection.
+-- 5. MTC.WIN Style with Group Boxes & Floating Toggle Pill so the menu never gets lost or hidden.
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,7 +20,7 @@ local Mouse = LP:GetMouse()
 local Camera = Workspace.CurrentCamera
 
 -- Clean up any prior instances cleanly upon re-injection
-for _, guiName in ipairs({"Universal67Menu_v35", "Universal67_CoolESP_v35", "Universal67Menu_v60", "Universal67Menu_v70"}) do
+for _, guiName in ipairs({"Universal67Menu", "Universal67_CoolESP", "Universal67Menu_v35", "Universal67_CoolESP_v35", "Universal67Menu_v60", "Universal67Menu_v70"}) do
     pcall(function()
         if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end
         if LP:FindFirstChild("PlayerGui") and LP.PlayerGui:FindFirstChild(guiName) then LP.PlayerGui[guiName]:Destroy() end
@@ -74,6 +84,12 @@ local S = {
     WalkSpeed = 32,
     InfJump = false,
     Noclip = false,
+    NoFallDamage = false,
+    NFD_BrakeHeight = 28,
+    NFD_MinFallSpeed = -18,
+    Fullbright = false,
+    CameraFOV = 70,
+    CameraFOVEnabled = false,
     
     -- Menu
     MenuKey = Enum.KeyCode.Insert,
@@ -219,7 +235,7 @@ end
 -- MESSAGE.TXT COOL ESP GUI ENGINE (Corner Slices, Gradients, Directional Texts)
 --==============================================================================
 local EspScreen = Instance.new("ScreenGui")
-EspScreen.Name = "Universal67_CoolESP_v35"
+EspScreen.Name = "Universal67_CoolESP"
 EspScreen.ResetOnSpawn = false
 EspScreen.IgnoreGuiInset = true
 EspScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -716,6 +732,99 @@ local function updateMovement()
             end
         end
     end
+    -- No Fall Damage: disable fall states + kill velocity near ground
+    if S.NoFallDamage then
+        local root = ch:FindFirstChild("HumanoidRootPart")
+        if root and hum then
+            -- block engine-level fall damage states
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            
+            local vel = root.AssemblyLinearVelocity
+            if vel.Y < S.NFD_MinFallSpeed then
+                local rp = RaycastParams.new()
+                rp.FilterType = Enum.RaycastFilterType.Blacklist
+                rp.FilterDescendantsInstances = {ch}
+                local result = Workspace:Raycast(root.Position, Vector3.new(0, -S.NFD_BrakeHeight * 3, 0), rp)
+                if result then
+                    local groundDist = (root.Position - result.Position).Magnitude
+                    if groundDist <= S.NFD_BrakeHeight then
+                        local factor = math.clamp(groundDist / S.NFD_BrakeHeight, 0, 1)
+                        local brakeStrength = (1 - factor) ^ 2
+                        local dampedY = vel.Y * (1 - brakeStrength * 0.97)
+                        -- within 5 studs: hard kill velocity to safe speed
+                        if groundDist <= 5 then
+                            dampedY = math.max(dampedY, -2)
+                            hum:ChangeState(Enum.HumanoidStateType.Running)
+                        end
+                        dampedY = math.min(dampedY, -0.1)
+                        root.AssemblyLinearVelocity = Vector3.new(vel.X, dampedY, vel.Z)
+                    end
+                end
+            end
+        end
+    else
+        -- re-enable states when feature is off
+        if hum then
+            pcall(function()
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+            end)
+        end
+    end
+    -- Camera FOV lock (continuous force)
+    if S.CameraFOVEnabled and Camera then
+        Camera.FieldOfView = S.CameraFOV
+    end
+end
+
+-- FOV Lock: intercept any game-side FOV change instantly
+local fovLockConn = nil
+local fovOriginal = nil
+
+local function setFOVLock(state)
+    S.CameraFOVEnabled = state
+    if state then
+        -- save original once
+        if not fovOriginal then
+            fovOriginal = Camera.FieldOfView
+        end
+        Camera.FieldOfView = S.CameraFOV
+        -- intercept: the instant any script changes FieldOfView, revert it
+        if fovLockConn then fovLockConn:Disconnect() end
+        fovLockConn = Camera:GetPropertyChangedSignal("FieldOfView"):Connect(function()
+            if S.CameraFOVEnabled and Camera.FieldOfView ~= S.CameraFOV then
+                Camera.FieldOfView = S.CameraFOV
+            end
+        end)
+    else
+        -- disconnect lock
+        if fovLockConn then fovLockConn:Disconnect() fovLockConn = nil end
+        -- restore original FOV
+        if fovOriginal and Camera then
+            Camera.FieldOfView = fovOriginal
+            fovOriginal = nil
+        end
+    end
+end
+
+-- Fullbright Engine
+local Lighting = game:GetService("Lighting")
+local fbConn = nil
+
+local function setFullbright(state)
+    S.Fullbright = state
+    if state then
+        if fbConn then fbConn:Disconnect() end
+        fbConn = RunService.RenderStepped:Connect(function()
+            Lighting.Ambient = Color3.new(1, 1, 1)
+            Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+        end)
+    else
+        if fbConn then fbConn:Disconnect() fbConn = nil end
+    end
 end
 
 UserInputService.JumpRequest:Connect(function()
@@ -776,10 +885,10 @@ oldNC=hookmetamethod(game,"__namecall",newcclosure(function(self,...)
 end))
 
 --==============================================================================
--- EXACT MTC.WIN IMGUI PHOTO STYLE WITH GROUP BOXES & FLOATING TOGGLE PILL
+-- MTC.WIN STYLE WITH GROUP BOXES & FLOATING TOGGLE PILL
 --==============================================================================
 local SG = Instance.new("ScreenGui")
-SG.Name = "Universal67Menu_v35"
+SG.Name = "Universal67Menu"
 SG.ResetOnSpawn = false
 SG.IgnoreGuiInset = true
 SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -841,7 +950,7 @@ local TitleLabel = Instance.new("TextLabel", MainWindow)
 TitleLabel.Size = UDim2.new(0, 220, 0, 34)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "UNIVERSAL 67 MENU : v3.5 ImGui"
+TitleLabel.Text = "UNIVERSAL 67 MENU"
 TitleLabel.Font = Enum.Font.RobotoMono or Enum.Font.GothamBold
 TitleLabel.TextSize = 13
 TitleLabel.TextColor3 = Color3.fromRGB(220, 220, 240)
@@ -1213,6 +1322,128 @@ addCheckbox(boxMove, "Custom WalkSpeed Enabled", S.WalkSpeedOn, function(v) S.Wa
 addSlider(boxMove, "WalkSpeed Value", 16, 250, S.WalkSpeed, function(v) S.WalkSpeed = v end)
 addCheckbox(boxMove, "Infinite Jump", S.InfJump, function(v) S.InfJump = v end)
 addCheckbox(boxMove, "Noclip (Phase Walls)", S.Noclip, function(v) S.Noclip = v end)
+addCheckbox(boxMove, "No Fall Damage (Soft Landing)", S.NoFallDamage, function(v) S.NoFallDamage = v end)
+addCheckbox(boxMove, "Fullbright (Remove Darkness)", S.Fullbright, function(v) setFullbright(v) end)
+addCheckbox(boxMove, "Camera FOV Lock (Block Game Zoom)", S.CameraFOVEnabled, function(v) setFOVLock(v) end)
+addSlider(boxMove, "Camera FOV Value", 30, 120, S.CameraFOV, function(v)
+    S.CameraFOV = v
+    if S.CameraFOVEnabled and Camera then Camera.FieldOfView = v end
+end)
+
+-- ============ Players Tab (TP to Player + Refresh) ============
+local pPlayersLeft, pPlayersRight = addTab("Players", 5)
+
+-- Teleport function
+local function teleportToPlayer(targetPlayer)
+    local myChar = LP.Character
+    local theirChar = targetPlayer and targetPlayer.Character
+    if not myChar or not theirChar then return end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    local theirRoot = theirChar:FindFirstChild("HumanoidRootPart")
+    if myRoot and theirRoot then
+        -- offset slightly so we don't stack inside them
+        myRoot.CFrame = theirRoot.CFrame * CFrame.new(0, 0, -5)
+    end
+end
+
+-- Player list group box with dynamic buttons
+local boxTP = addGroupBox(pPlayersLeft, "Teleport to Player")
+local tpButtonList = {} -- track created buttons for cleanup
+
+local function buildPlayerList()
+    -- clear old buttons
+    for _, btn in ipairs(tpButtonList) do
+        pcall(function() btn:Destroy() end)
+    end
+    tpButtonList = {}
+    -- build fresh list
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LP then continue end
+        local row = Instance.new("Frame", boxTP)
+        row.Size = UDim2.new(1, 0, 0, 22)
+        row.BackgroundTransparency = 1
+        table.insert(tpButtonList, row)
+        
+        local nameLabel = Instance.new("TextLabel", row)
+        nameLabel.Size = UDim2.new(1, -60, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = p.DisplayName .. " (@" .. p.Name .. ")"
+        nameLabel.Font = Enum.Font.RobotoMono or Enum.Font.Gotham
+        nameLabel.TextSize = 11
+        nameLabel.TextColor3 = Color3.fromRGB(210, 210, 225)
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        
+        local tpBtn = Instance.new("TextButton", row)
+        tpBtn.Size = UDim2.new(0, 52, 0, 18)
+        tpBtn.Position = UDim2.new(1, -52, 0.5, -9)
+        tpBtn.BackgroundColor3 = Color3.fromRGB(160, 80, 255)
+        tpBtn.BorderSizePixel = 0
+        tpBtn.Text = "TP"
+        tpBtn.Font = Enum.Font.GothamBold
+        tpBtn.TextSize = 11
+        tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0, 4)
+        
+        tpBtn.MouseButton1Click:Connect(function()
+            teleportToPlayer(p)
+            -- flash feedback
+            tpBtn.BackgroundColor3 = Color3.fromRGB(45, 255, 80)
+            tpBtn.Text = "✔"
+            task.delay(0.5, function()
+                pcall(function()
+                    tpBtn.BackgroundColor3 = Color3.fromRGB(160, 80, 255)
+                    tpBtn.Text = "TP"
+                end)
+            end)
+        end)
+    end
+end
+
+-- Initial build
+buildPlayerList()
+
+-- Refresh button in right column
+local boxRefresh = addGroupBox(pPlayersRight, "Player List")
+local refreshRow = Instance.new("Frame", boxRefresh)
+refreshRow.Size = UDim2.new(1, 0, 0, 28)
+refreshRow.BackgroundTransparency = 1
+
+local refreshBtn = Instance.new("TextButton", refreshRow)
+refreshBtn.Size = UDim2.new(1, 0, 1, 0)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(160, 80, 255)
+refreshBtn.BorderSizePixel = 0
+refreshBtn.Text = "⟳  REFRESH PLAYER LIST"
+refreshBtn.Font = Enum.Font.GothamBold
+refreshBtn.TextSize = 12
+refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+
+refreshBtn.MouseButton1Click:Connect(function()
+    buildPlayerList()
+    refreshBtn.Text = "✔  REFRESHED"
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(45, 255, 80)
+    task.delay(0.8, function()
+        pcall(function()
+            refreshBtn.Text = "⟳  REFRESH PLAYER LIST"
+            refreshBtn.BackgroundColor3 = Color3.fromRGB(160, 80, 255)
+        end)
+    end)
+end)
+
+-- Player count display
+local countLabel = Instance.new("TextLabel", boxRefresh)
+countLabel.Size = UDim2.new(1, 0, 0, 16)
+countLabel.BackgroundTransparency = 1
+countLabel.Font = Enum.Font.RobotoMono or Enum.Font.Gotham
+countLabel.TextSize = 11
+countLabel.TextColor3 = Color3.fromRGB(140, 140, 160)
+countLabel.TextXAlignment = Enum.TextXAlignment.Left
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        countLabel.Text = "Players online: " .. #Players:GetPlayers() .. "/" .. Players.MaxPlayers
+    end)
+end)
 
 local pSettingsLeft, pSettingsRight = addTab("Settings", 4)
 local boxTeam = addGroupBox(pSettingsLeft, "Team Check")
@@ -1250,3 +1481,5 @@ UserInputService.InputEnded:Connect(function(i)
     elseif i.KeyCode == Enum.KeyCode.Space then keys.space = false
     elseif i.KeyCode == Enum.KeyCode.LeftShift then keys.shift = false end
 end)
+
+print("[Universal 67 Menu] Loaded successfully.")
