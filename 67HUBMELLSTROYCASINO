@@ -1,13 +1,3 @@
--- Universal 67 Menu v3.5 (Cool ESP from message.txt + UniversalFly + Coldwar Mechanics + Advanced Teams)
--- Complete Universal Suite featuring:
--- 1. Cool ESP (message.txt): Corner Slice Box (`ImageLabel` slice & corner fallbacks), Solid Gradient Box,
---    Multi-Color UIGradient Health Bar (Red->Yellow->Green), Directional Top/Bottom Texts (Name, Role, Distance, Weapon).
--- 2. UniversalFly: Full Velocity Nullify & CFrame Heartbeat flight modes with custom keybind and speed slider.
--- 3. Coldwar Engine: Drawing Skeleton joints, FOV Circle, Highlight Chams, and universal hookmetamethod Silent Aim.
--- 4. Advanced 5-Layer Team Check: Checks standard Team/Color, Neutral, Player/Character attributes & folders
---    (Team/Squad/Clan/Party), leaderstats, Friend verification (IsFriendsWith), and ForceField/SpawnProtection.
--- 5. Exact MTC.WIN ImGui Photo Style with Group Boxes & Floating Toggle Pill so the menu never gets lost or hidden.
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -84,10 +74,6 @@ local S = {
     WalkSpeed = 32,
     InfJump = false,
     Noclip = false,
-    NoFallDamage = false,
-    NFD_BrakeHeight = 28,
-    NFD_MinFallSpeed = -18,
-    Fullbright = false,
     
     -- Menu
     MenuKey = Enum.KeyCode.Insert,
@@ -730,93 +716,6 @@ local function updateMovement()
             end
         end
     end
-    -- No Fall Damage: aggressive brake before ground contact
-    if S.NoFallDamage then
-        local root = ch:FindFirstChild("HumanoidRootPart")
-        if root and hum then
-            local vel = root.AssemblyLinearVelocity
-            -- activate even at moderate fall speeds
-            if vel.Y < S.NFD_MinFallSpeed then
-                local rp = RaycastParams.new()
-                rp.FilterType = Enum.RaycastFilterType.Blacklist
-                rp.FilterDescendantsInstances = {ch}
-                -- cast far enough to catch high-speed falls early
-                local result = Workspace:Raycast(root.Position, Vector3.new(0, -S.NFD_BrakeHeight * 3, 0), rp)
-                if result then
-                    local groundDist = (root.Position - result.Position).Magnitude
-                    if groundDist <= S.NFD_BrakeHeight then
-                        -- quadratic curve: ramps up aggressively close to ground
-                        local factor = math.clamp(groundDist / S.NFD_BrakeHeight, 0, 1)
-                        local brakeStrength = (1 - factor) ^ 2
-                        -- aggressive damping: up to 97% velocity killed per frame
-                        local dampedY = vel.Y * (1 - brakeStrength * 0.97)
-                        -- hard cap: within 3 studs, force velocity to safe landing speed
-                        if groundDist <= 3 then
-                            dampedY = math.max(dampedY, -8)
-                        end
-                        -- never reverse upward
-                        dampedY = math.min(dampedY, -0.1)
-                        root.AssemblyLinearVelocity = Vector3.new(vel.X, dampedY, vel.Z)
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Fullbright Engine (continuous RenderStepped force)
-local Lighting = game:GetService("Lighting")
-local fbOriginal = nil
-local fbDisabled = {}
-local fbConn = nil
-
-local function setFullbright(state)
-    S.Fullbright = state
-    if state then
-        -- save originals once
-        if not fbOriginal then
-            fbOriginal = {
-                Ambient = Lighting.Ambient,
-                OutdoorAmbient = Lighting.OutdoorAmbient,
-                GlobalShadows = Lighting.GlobalShadows,
-                FogEnd = Lighting.FogEnd,
-            }
-        end
-        -- kill post-processing once
-        fbDisabled = {}
-        for _, obj in ipairs(Lighting:GetDescendants()) do
-            if (obj:IsA("Atmosphere") or obj:IsA("BloomEffect") or obj:IsA("BlurEffect")
-                or obj:IsA("ColorCorrectionEffect") or obj:IsA("SunRaysEffect")
-                or obj:IsA("DepthOfFieldEffect")) and obj.Enabled then
-                obj.Enabled = false
-                table.insert(fbDisabled, obj)
-            end
-        end
-        -- continuous force every frame so game can't override
-        if fbConn then fbConn:Disconnect() end
-        fbConn = RunService.RenderStepped:Connect(function()
-            Lighting.Ambient = Color3.new(1, 1, 1)
-            Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
-            Lighting.GlobalShadows = false
-            Lighting.FogEnd = 9e9
-        end)
-    else
-        -- stop forcing
-        if fbConn then fbConn:Disconnect() fbConn = nil end
-        -- restore originals
-        if fbOriginal then
-            Lighting.Ambient = fbOriginal.Ambient
-            Lighting.OutdoorAmbient = fbOriginal.OutdoorAmbient
-            Lighting.GlobalShadows = fbOriginal.GlobalShadows
-            Lighting.FogEnd = fbOriginal.FogEnd
-            fbOriginal = nil
-        end
-        -- re-enable post-processing
-        for _, obj in ipairs(fbDisabled) do
-            pcall(function() obj.Enabled = true end)
-        end
-        fbDisabled = {}
-    end
 end
 
 UserInputService.JumpRequest:Connect(function()
@@ -1314,8 +1213,6 @@ addCheckbox(boxMove, "Custom WalkSpeed Enabled", S.WalkSpeedOn, function(v) S.Wa
 addSlider(boxMove, "WalkSpeed Value", 16, 250, S.WalkSpeed, function(v) S.WalkSpeed = v end)
 addCheckbox(boxMove, "Infinite Jump", S.InfJump, function(v) S.InfJump = v end)
 addCheckbox(boxMove, "Noclip (Phase Walls)", S.Noclip, function(v) S.Noclip = v end)
-addCheckbox(boxMove, "No Fall Damage (Soft Landing)", S.NoFallDamage, function(v) S.NoFallDamage = v end)
-addCheckbox(boxMove, "Fullbright (Remove Darkness)", S.Fullbright, function(v) setFullbright(v) end)
 
 local pSettingsLeft, pSettingsRight = addTab("Settings", 4)
 local boxTeam = addGroupBox(pSettingsLeft, "Team Check")
