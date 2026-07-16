@@ -1250,5 +1250,3 @@ UserInputService.InputEnded:Connect(function(i)
     elseif i.KeyCode == Enum.KeyCode.Space then keys.space = false
     elseif i.KeyCode == Enum.KeyCode.LeftShift then keys.shift = false end
 end)
-
-print("[Universal 67 Menu v3.5 ImGui] Exact v3.5 backend + MTC.WIN ImGui GroupBox style loaded successfully.")
